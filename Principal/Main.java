@@ -1,5 +1,4 @@
 package Principal;
-
 import javax.swing.JOptionPane;
 import java.time.LocalDate;
 
@@ -13,6 +12,168 @@ public class Main {
     static LocalDate[] vencimentos = new LocalDate[TAM];
     static int quantidade = 0;
     static double[] saldoDevedor = new double[TAM];
+    static boolean[] pagas = new boolean[TAM];
+
+    static void resumoFinanceiro() {
+
+        int totalPagas = 0;
+        int totalPendentes = 0;
+        int totalVencidas = 0;
+
+        double valorTotal = 0;
+        double valorPago = 0;
+        double valorVencido = 0;
+        double valorPendente = 0;
+        double totalEmAberto = 0;
+
+        for (int i = 0; i < quantidade; i++) {
+
+            valorTotal += valores[i];
+
+            valorPago += valores[i] - saldoDevedor[i];
+
+            if (pagas[i]) {
+                totalPagas++;
+
+            } else if (vencimentos[i].isBefore(LocalDate.now())) {
+                totalVencidas++;
+                valorVencido += saldoDevedor[i];
+
+            } else {
+                totalPendentes++;
+                valorPendente += saldoDevedor[i];
+            }
+
+            totalEmAberto += saldoDevedor[i];
+        }
+
+        String mensagem = "=== RESUMO FINANCEIRO ===\n\n"
+                + "Total de despesas: " + quantidade
+                + "\nDespesas pagas: " + totalPagas
+                + "\nDespesas pendentes: " + totalPendentes
+                + "\nDespesas vencidas: " + totalVencidas
+                + "\nValor em aberto: R$ " + totalEmAberto
+                + "\n\n=== VALORES FINANCEIROS ==="
+                + "\nValor total cadastrado: R$ " + valorTotal
+                + "\nValor já pago: R$ " + valorPago
+                + "\nValor vencido: R$ " + valorVencido
+                + "\nValor pendente: R$ " + valorPendente;
+
+        JOptionPane.showMessageDialog(null, mensagem);
+    }
+
+    static void pesquisarConta() {
+
+        if (quantidade == 0) {
+            JOptionPane.showMessageDialog(null, "Nenhuma despesa cadastrada!");
+            return;
+        }
+
+        String opcaoPesquisa = JOptionPane.showInputDialog(
+                "=== PESQUISAR DESPESA ===\n\n"
+                + "1. Pesquisar por documento\n"
+                + "2. Pesquisar por beneficiário\n"
+                + "Digite a opção:"
+        );
+
+        if (opcaoPesquisa == null) {
+            return;
+        }
+
+        switch (opcaoPesquisa) {
+            case "1":
+                pesquisarPorDocumento();
+                break;
+
+            case "2":
+                pesquisarPorBeneficiario();
+                break;
+
+            default:
+                JOptionPane.showMessageDialog(null, "Opção inválida!");
+
+        }
+    }
+
+    static void pesquisarPorDocumento() {
+
+        String documento = JOptionPane.showInputDialog(
+                "Digite o documento da despesa:"
+        );
+
+        if (documento == null) {
+            return;
+        }
+
+        int posicao = localizarConta(documento);
+
+        if (posicao == -1) {
+            JOptionPane.showMessageDialog(null,
+                    "Despesa não encontrada!");
+            return;
+        }
+
+        mostrarDespesa(posicao);
+    }
+
+    static void pesquisarPorBeneficiario() {
+
+        String nome = JOptionPane.showInputDialog(
+                "Digite o nome do beneficiário:"
+        );
+
+        if (nome == null) {
+            return;
+        }
+
+        String mensagem = "";
+        int encontrados = 0;
+
+        for (int i = 0; i < quantidade; i++) {
+
+            if (beneficiarios[i].equalsIgnoreCase(nome.trim())) {
+
+                String situacao = pagas[i] ? "Paga"
+                        : (vencimentos[i].isBefore(LocalDate.now())
+                        ? "Vencida" : "Pendente");
+
+                mensagem += "\nDocumento: " + documentos[i]
+                        + "\nBeneficiário: " + beneficiarios[i]
+                        + "\nDescrição: " + descricoes[i]
+                        + "\nValor: R$ " + valores[i]
+                        + "\nVencimento: " + vencimentos[i]
+                        + "\nSituação: " + situacao
+                        + "\n-------------------------\n";
+
+                encontrados++;
+            }
+        }
+
+        if (encontrados == 0) {
+            JOptionPane.showMessageDialog(null,
+                    "Nenhuma despesa encontrada!");
+        } else {
+            JOptionPane.showMessageDialog(null,
+                    "Despesas encontradas: " + encontrados
+                    + "\n" + mensagem);
+        }
+    }
+
+    static void mostrarDespesa(int posicao) {
+
+        String situacao = pagas[posicao] ? "Paga"
+                : (vencimentos[posicao].isBefore(LocalDate.now())
+                ? "Vencida" : "Pendente");
+
+        String mensagem = "Documento: " + documentos[posicao]
+                + "\nBeneficiário: " + beneficiarios[posicao]
+                + "\nDescrição: " + descricoes[posicao]
+                + "\nValor: R$ " + valores[posicao]
+                + "\nVencimento: " + vencimentos[posicao]
+                + "\nSituação: " + situacao;
+
+        JOptionPane.showMessageDialog(null, mensagem);
+    }
 
     public static void main(String[] args) {
 
@@ -24,16 +185,17 @@ public class Main {
                     + "1. Cadastrar Despesa\n"
                     + "2. Listar Despesas\n"
                     + "3. Sair\n\n"
+                    + "4. Dar baixa em despesa\n"
+                    + "5. Excluir despesa\n"
+                    + "6. Resumo financeiro\n"
+                    + "7. Pesquisar despesa\n"
                     + "Digite a opção desejada:"
             );
 
             if (input == null) {
                 break;
             }
-            if (validarInteiro(input) == false) {
-                JOptionPane.showMessageDialog(null, "Opção inválida!");
-                continue;
-            }
+
             opcao = Integer.parseInt(input);
 
             switch (opcao) {
@@ -41,16 +203,115 @@ public class Main {
                     cadastrarConta();
                     break;
                 case 2:
-                    JOptionPane.showMessageDialog(null, "Módulo de listagem em construção.");
+                    listarContas();
                     break;
                 case 3:
                     JOptionPane.showMessageDialog(null, "Encerrando o sistema...");
+                    break;
+                case 4:
+                    darBaixa();
+                    break;
+                case 5:
+                    excluirConta();
+                    break;
+                case 6:
+                    resumoFinanceiro();
+                    break;
+                case 7:
+                    pesquisarConta();
                     break;
                 default:
                     JOptionPane.showMessageDialog(null, "Opção inválida!");
             }
 
         } while (opcao != 3);
+    }
+
+    static void darBaixa() {
+
+        String documento = JOptionPane.showInputDialog(
+                "Digite o documento da despesa:"
+        );
+
+        if (documento == null) {
+            return;
+        }
+
+        int posicao = localizarConta(documento);
+
+        if (posicao == -1) {
+            JOptionPane.showMessageDialog(null, "Despesa não encontrada!");
+            return;
+        }
+
+        if (pagas[posicao]) {
+            JOptionPane.showMessageDialog(null, "Essa despesa já está totalmente paga!");
+            return;
+        }
+
+        JOptionPane.showMessageDialog(null,
+                "Beneficiário: " + beneficiarios[posicao]
+                + "\nDescrição: " + descricoes[posicao]
+                + "\nValor original: R$ " + valores[posicao]
+                + "\nSaldo devedor: R$ " + saldoDevedor[posicao]
+        );
+
+        String entradaPagamento = JOptionPane.showInputDialog(
+                "Digite o valor que deseja pagar:"
+        );
+
+        if (entradaPagamento == null) {
+            return;
+        }
+
+        if (validarValor(entradaPagamento) == false) {
+            JOptionPane.showMessageDialog(null, "Valor inválido!");
+            return;
+        }
+
+        double pagamento = Double.parseDouble(entradaPagamento);
+
+        if (pagamento <= 0 || pagamento > saldoDevedor[posicao]) {
+            JOptionPane.showMessageDialog(null,
+                    "O pagamento deve ser maior que zero e não pode ultrapassar o saldo devedor!");
+            return;
+        }
+
+        saldoDevedor[posicao] -= pagamento;
+
+        if (saldoDevedor[posicao] < 0.01) {
+            saldoDevedor[posicao] = 0;
+            pagas[posicao] = true;
+        }
+
+        JOptionPane.showMessageDialog(null,
+                "Pagamento registrado com sucesso!"
+                + "\nValor pago: R$ " + pagamento
+                + "\nSaldo restante: R$ " + saldoDevedor[posicao]
+                + "\nSituação: " + (pagas[posicao] ? "Paga" : "Pagamento parcial")
+        );
+    }
+
+    static void listarContas() {
+        if (quantidade == 0) {
+            JOptionPane.showMessageDialog(null, "Nenhuma despesa cadastrada!");
+            return;
+        }
+
+        String mensagem = "";
+
+        for (int i = 0; i < quantidade; i++) {
+            mensagem += "Documento: " + documentos[i]
+                    + "\nBeneficiário: " + beneficiarios[i]
+                    + "\nDescrição: " + descricoes[i]
+                    + "\nValor: R$ " + valores[i]
+                    + "\nVencimento: " + vencimentos[i]
+                    + "\nSituação: " + (pagas[i] ? "Paga"
+                            : (vencimentos[i].isBefore(LocalDate.now()) ? "Vencida" : "Pendente"))
+                    + "\n-------------------------\n";
+        }
+
+        JOptionPane.showMessageDialog(null, mensagem);
     }
 
     static int localizarConta(String documento) {
@@ -90,214 +351,101 @@ public class Main {
             valores[i] = valores[i + 1];
             vencimentos[i] = vencimentos[i + 1];
             saldoDevedor[i] = saldoDevedor[i + 1];
+            pagas[i] = pagas[i + 1];
         }
         quantidade--;
         JOptionPane.showMessageDialog(null, "Conta excluída com sucesso");
     }
 
     static void cadastrarConta() {
-
         if (quantidade == TAM) {
-            JOptionPane.showMessageDialog(null, "Limite de contas atingido!");
+            JOptionPane.showMessageDialog(null, "limite de contas atingido");
             return;
         }
-
-        String documento = JOptionPane.showInputDialog("Digite o documento da conta:");
+        int posicao = quantidade;
+        String documento = JOptionPane.showInputDialog("Digite o documento da despesa");
         if (documento == null) {
             return;
         }
-        if (validarTexto(documento) == false) {
-            JOptionPane.showMessageDialog(null, "Documento inválido!");
-            return;
-        }
-        if (localizarConta(documento) != -1) {
+        int posicaoExistente = localizarConta(documento);
+
+        if (posicaoExistente != -1) {
             JOptionPane.showMessageDialog(null, "Documento já cadastrado!");
             return;
         }
-        String descricao = JOptionPane.showInputDialog("Digite a descrição da conta:");
-        if (descricao == null) {
-            return;
-        }
-        if (validarTexto(descricao) == false) {
-            JOptionPane.showMessageDialog(null, "Descrição inválida!");
-            return;
-        }
-        String beneficiario = JOptionPane.showInputDialog("Digite o beneficiário:");
+        documentos[posicao] = documento;
+
+        String beneficiario = JOptionPane.showInputDialog("Digite o nome do beneficiário");
+
         if (beneficiario == null) {
             return;
         }
-        if (validarTexto(beneficiario) == false) {
-            JOptionPane.showMessageDialog(null, "Beneficiário inválido!");
-            return;
-        }
-        String entradaValor = JOptionPane.showInputDialog("Digite o valor da conta:");
 
-        if (entradaValor == null) {
-            return;
-        }
-        if (validarValor(entradaValor) == false) {
-            JOptionPane.showMessageDialog(null, "Valor inválido!");
-            return;
-        }
-        double valor = Double.parseDouble(entradaValor);
+        beneficiarios[posicao] = beneficiario;
+        String descricao = JOptionPane.showInputDialog("Digite a descrição da despesa");
 
-        if (valor <= 0) {
-            JOptionPane.showMessageDialog(null, "Valor inválido!");
-            return;
-        }
-        String entradaData = JOptionPane.showInputDialog("Digite o vencimento (AAAA-MM-DD):");
-        if (entradaData == null) {
-            return;
-        }
-        if (validarData(entradaData) == false) {
-            JOptionPane.showMessageDialog(null, "Data inválida!");
+        if (descricao == null) {
             return;
         }
 
-        LocalDate vencimento = LocalDate.parse(entradaData);
-        documentos[quantidade] = documento;
-        descricoes[quantidade] = descricao;
-        beneficiarios[quantidade] = beneficiario;
-        valores[quantidade] = valor;
-        vencimentos[quantidade] = vencimento;
-        saldoDevedor[quantidade] = valor;
+        descricoes[posicao] = descricao;
+        String entrada = JOptionPane.showInputDialog("Digite o valor da despesa");
+
+        if (entrada == null) {
+            return;
+        }
+
+        double valor;
+
+        try {
+            valor = Double.parseDouble(entrada);
+
+            if (valor <= 0) {
+                JOptionPane.showMessageDialog(null, "Digite um valor maior que zero!");
+                return;
+            }
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "Valor inválido! Digite apenas números.");
+            return;
+        }
+
+        valores[posicao] = valor;
+        saldoDevedor[posicao] = valor;
+        pagas[posicao] = false;
+
+        String data = JOptionPane.showInputDialog("Digite a data de vencimento (AAAA-MM-DD)");
+
+        if (data == null) {
+            return;
+        }
+        try {
+            vencimentos[posicao] = LocalDate.parse(data);
+
+        } catch (java.time.format.DateTimeParseException e) {
+            JOptionPane.showMessageDialog(null,
+                    "Data inválida! Use o formato AAAA-MM-DD.");
+            return;
+        }
+
         quantidade++;
-        JOptionPane.showMessageDialog(null, "Conta cadastrada com sucesso!");
+
+        JOptionPane.showMessageDialog(null, "Despesa cadastrada com sucesso!");
     }
 
     static boolean validarValor(String entrada) {
-        if (entrada == null) {
+
+        if (entrada == null || entrada.trim().isEmpty()) {
             return false;
         }
 
-        if (entrada.equals("")) {
-            return false;
-        }
-        int pontos = 0;
-        int numeros = 0;
-        for (int i = 0; i < entrada.length(); i++) {
-            char c = entrada.charAt(i);
-            if (c >= '0' && c <= '9') {
-                numeros++;
-            } else if (c == '.') {
-                pontos++;
-            } else {
-                return false;
-            }
-        }
-        if (pontos > 1 || numeros == 0) {
-            return false;
-        }
-        double valor = Double.parseDouble(entrada);
+        try {
+            double valor = Double.parseDouble(entrada);
+            return valor > 0 && Double.isFinite(valor);
 
-        if (valor <= 0 || valor > Double.MAX_VALUE) {
+        } catch (NumberFormatException e) {
             return false;
         }
-        return true;
     }
 
-    static boolean validarData(String entrada) {
-        if (entrada == null) {
-            return false;
-        }
-
-        if (entrada.equals("")) {
-            return false;
-        }
-        if (entrada.length() != 10) {
-            return false;
-        }
-        if (entrada.charAt(4) != '-' || entrada.charAt(7) != '-') {
-            return false;
-        }
-        for (int i = 0; i < entrada.length(); i++) {
-            char c = entrada.charAt(i);
-
-            if (i != 4 && i != 7) {
-                if (c < '0' || c > '9') {
-                    return false;
-                }
-            }
-        }
-        int ano = Integer.parseInt(entrada.substring(0, 4));
-        int mes = Integer.parseInt(entrada.substring(5, 7));
-        int dia = Integer.parseInt(entrada.substring(8, 10));
-        if (mes < 1 || mes > 12) {
-            return false;
-        }
-
-        if (dia < 1 || dia > 31) {
-            return false;
-        }
-        if (mes == 4 || mes == 6 || mes == 9 || mes == 11) {
-            if (dia > 30) {
-                return false;
-            }
-        }
-        if (mes == 2) {
-            if (ano % 400 == 0 || (ano % 4 == 0 && ano % 100 != 0)) {
-                if (dia > 29) {
-                    return false;
-                }
-            } else {
-                if (dia > 28) {
-                    return false;
-                }
-            }
-        }
-        return true;
-
-    }
-
-    static boolean validarInteiro(String entrada) {
-        if (entrada == null) {
-            return false;
-        }
-
-        if (entrada.equals("")) {
-            return false;
-        }
-        for (int i = 0; i < entrada.length(); i++) {
-            char c = entrada.charAt(i);
-
-            if (c < '0' || c > '9') {
-                return false;
-            }
-        }
-        double numero = Double.parseDouble(entrada);
-
-        if (numero > Integer.MAX_VALUE) {
-            return false;
-        }
-        return true;
-    }
-
-    static boolean validarSN(String entrada) {
-        if (entrada == null) {
-            return false;
-        }
-
-        if (entrada.equals("")) {
-            return false;
-        }
-        if (entrada.equals("S") || entrada.equals("s")
-                || entrada.equals("N") || entrada.equals("n")) {
-            return true;
-        }
-        return false;
-    }
-
-    static boolean validarTexto(String entrada) {
-        if (entrada == null) {
-            return false;
-        }
-
-        if (entrada.equals("")) {
-            return false;
-        }
-        if (entrada.trim().equals("")) {
-            return false;
-        }
-        return true;
-    }
 }
